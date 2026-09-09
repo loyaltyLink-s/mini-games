@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DVD Bounce Battle Arena - Local JSON Loader</title>
+    <title>DVD Bounce Sandbox - Modular Engine</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', sans-serif; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
@@ -13,24 +13,18 @@
             font-size: 18px; color: #fff; text-shadow: 0 0 10px #00f0ff; z-index: 100; pointer-events: none;
         }
 
-        #toggle-menu-btn {
-            position: fixed; top: 15px; right: 15px; z-index: 100; background: #00f0ff; color: #000;
-            border: none; padding: 8px 14px; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 12px #00f0ff; font-size: 12px;
+        #top-bar {
+            position: fixed; top: 15px; right: 15px; z-index: 100; display: flex; gap: 10px;
         }
-
-        #menu-panel {
-            position: fixed; top: 55px; right: 15px; z-index: 99; background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00f0ff; border-radius: 10px; padding: 12px; width: 250px; display: none; flex-direction: column; gap: 8px; backdrop-filter: blur(5px);
-        }
-        #menu-panel.active { display: flex; }
 
         .btn-ui {
-            padding: 8px; border-radius: 6px; border: 1px solid #00f0ff; background: rgba(0, 240, 255, 0.1);
-            color: #00f0ff; font-size: 12px; font-weight: bold; text-align: center; cursor: pointer; transition: 0.2s;
+            background: #00f0ff; color: #000; border: none; padding: 8px 14px;
+            border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 10px #00f0ff; font-size: 12px;
         }
-        .btn-ui:hover { background: #00f0ff; color: #000; }
-        #start-match-btn { background: #00ff66; color: #000; border: none; box-shadow: 0 0 10px #00ff66; display: none; }
-        .btn-clear { background: #ff0055; color: #fff; border: none; }
+        .btn-start { background: #00ff66; box-shadow: 0 0 10px #00ff66; display: none; }
+        .btn-reset { background: #ff0055; color: #fff; box-shadow: 0 0 10px #ff0055; }
+
+        #file-input { display: none; }
 
         #viewport { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; overflow: hidden; background: #050508; }
 
@@ -38,11 +32,6 @@
             width: 1200px; height: 675px; position: absolute; top: 0; left: 0; background-color: #000;
             border: 5px solid #00f0ff; border-radius: 12px; box-shadow: 0 0 15px #00f0ff, inset 0 0 15px rgba(0, 240, 255, 0.4);
             transform-origin: 0 0;
-        }
-
-        .arena-bg-image {
-            width: 500px; height: 500px; object-fit: contain; pointer-events: none; position: absolute;
-            top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.8; z-index: 1;
         }
 
         .character-container {
@@ -59,20 +48,16 @@
         .charging .character-img { filter: drop-shadow(0 0 15px #00f0ff) brightness(1.5); animation: pulse 0.2s infinite alternate; }
         .silenced .character-img { filter: grayscale(0.8) sepia(1) hue-rotate(180deg); }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.05); }
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
 
         .sonic-wave {
             position: absolute; border: 4px solid #00f0ff; border-radius: 50%; background: rgba(0, 240, 255, 0.2);
-            box-shadow: 0 0 20px #00f0ff, inset 0 0 15px #ffffff; pointer-events: none; z-index: 15;
+            box-shadow: 0 0 20px #00f0ff; pointer-events: none; z-index: 15;
             animation: sonic-expand 0.4s ease-out forwards;
         }
-
         @keyframes sonic-expand {
-            0% { width: 10px; height: 10px; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { width: 500px; height: 500px; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+            0% { width: 10px; height: 10px; opacity: 1; transform: translate(-50%, -50%); }
+            100% { width: 500px; height: 500px; opacity: 0; transform: translate(-50%, -50%); }
         }
 
         .floating-text {
@@ -83,28 +68,24 @@
 </head>
 <body>
 
-    <h1>DVD Bounce Battle Arena</h1>
+    <h1>DVD Bounce Sandbox Arena</h1>
 
-    <button id="toggle-menu-btn" onclick="toggleMenuPanel()">⚙️ Pilih Karakter</button>
-
-    <div id="menu-panel">
-        <button class="btn-ui" onclick="loadCharacterFromJSON('char/warden/warden.json')">+ Tambah Warden</button>
-        <button class="btn-ui" onclick="loadCharacterFromJSON('char/dummy/practice_dummy.json')">+ Tambah Dummy</button>
-        
-        <button id="start-match-btn" class="btn-ui" onclick="startMatch()">▶️ Start Match</button>
-        <button class="btn-ui btn-clear" onclick="clearCharacters()">Reset Arena</button>
+    <div id="top-bar">
+        <button class="btn-ui" onclick="document.getElementById('file-input').click()">📁 Upload Karakter</button>
+        <button id="start-btn" class="btn-ui btn-start" onclick="startMatch()">▶️ Start</button>
+        <button class="btn-ui btn-reset" onclick="resetArena()">Reset</button>
     </div>
 
+    <!-- Multi-file / Folder selector -->
+    <input type="file" id="file-input" multiple webkitdirectory directory onchange="handleFileUpload(event)">
+
     <div id="viewport">
-        <div id="game-arena">
-            <img src="https://lh3.googleusercontent.com/d/1INpDOkYg-invOZ08SNiQs9bq6c5g0lrp" class="arena-bg-image">
-        </div>
+        <div id="game-arena"></div>
     </div>
 
     <script>
         const arena = document.getElementById('game-arena');
-        const menuPanel = document.getElementById('menu-panel');
-        const startMatchBtn = document.getElementById('start-match-btn');
+        const startBtn = document.getElementById('start-btn');
 
         const WORLD_WIDTH = 1200;
         const WORLD_HEIGHT = 675;
@@ -120,23 +101,51 @@
         let shakeIntensity = 0;
         let shakeDuration = 0;
 
-        function toggleMenuPanel() { menuPanel.classList.toggle('active'); }
+        // --- SISTEM UPLOAD DAN PARSING BLOB ---
+        async function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
 
-        async function loadCharacterFromJSON(jsonPath) {
-            if (loadedCharacters.length >= 2) return alert("Arena Penuh (Maksimal 2 Karakter)");
+            // Cari file .json
+            const jsonFile = files.find(f => f.name.endsWith('.json'));
+            if (!jsonFile) return alert("File JSON karakter tidak ditemukan!");
 
             try {
-                const response = await fetch(jsonPath);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                tambahkanKarakterKeArena(data);
+                const jsonText = await jsonFile.text();
+                const charData = JSON.parse(jsonText);
+
+                // Map semua file terkait ke URL Blob lokal
+                const fileMap = {};
+                files.forEach(f => {
+                    fileMap[f.name] = URL.createObjectURL(f);
+                });
+
+                // Tautkan aset gambar & audio dari fileMap
+                if (charData.gambar && fileMap[charData.gambar]) {
+                    charData.gambarUrl = fileMap[charData.gambar];
+                }
+                if (charData.sfx) {
+                    if (charData.sfx.pantul && fileMap[charData.sfx.pantul]) charData.sfxPantulUrl = fileMap[charData.sfx.pantul];
+                    if (charData.sfx.serang && fileMap[charData.sfx.serang]) charData.sfxSerangUrl = fileMap[charData.sfx.serang];
+                }
+
+                // Eksekusi JS Kustom jika karakter punya file script khusus
+                if (charData.script && fileMap[charData.script]) {
+                    const scriptText = await files.find(f => f.name === charData.script).text();
+                    const scriptFn = new Function('character', 'engine', scriptText);
+                    charData.customLogic = scriptFn;
+                }
+
+                tambahkanKarakter(charData);
             } catch (err) {
-                console.error("Gagal membaca file JSON:", err);
-                alert("Gagal memuat file JSON! Pastikan dijalankan lewat Web Server / Live Server.");
+                console.error("Error parsing folder karakter:", err);
+                alert("Format file karakter rusak/tidak valid!");
             }
         }
 
-        function tambahkanKarakterKeArena(data) {
+        function tambahkanKarakter(data) {
+            if (loadedCharacters.length >= 2) return alert("Arena Maksimal 2 Karakter!");
+
             const scale = data.ukuran || 1.0;
             const charWidth = BASE_WIDTH * scale;
             const charHeight = BASE_HEIGHT * scale;
@@ -153,7 +162,7 @@
             hpOuter.appendChild(hpInner);
 
             const img = document.createElement('img');
-            img.src = data.gambar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='75'><rect width='60' height='75' fill='%23555'/></svg>";
+            img.src = data.gambarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='75'><rect width='60' height='75' fill='%23555'/></svg>";
             img.className = 'character-img';
 
             container.appendChild(hpOuter);
@@ -165,14 +174,11 @@
 
             const charObj = {
                 ...data,
-                uniqueId: `char_${Date.now()}_${Math.random()}`,
-                container: container,
-                hpInner: hpInner,
-                isInfiniteHp: isInfiniteHp,
+                container,
+                hpInner,
+                isInfiniteHp,
                 maxHp: isInfiniteHp ? Infinity : (data.hp || 100),
                 currentHp: isInfiniteHp ? Infinity : (data.hp || 100),
-                baseDamage: data.damage || 0,
-                tipeSerangan: data.tipeSerangan || 'none',
                 width: charWidth,
                 height: charHeight,
                 x: isFirst ? 200 : WORLD_WIDTH - 200 - charWidth,
@@ -184,37 +190,35 @@
                 
                 isCharging: false,
                 isSilenced: false,
-                lastAttackTime: 0,
                 lastUltiTime: 0,
-                
-                // Path file audio lokal
-                sfxPantulPath: data.sfx?.pantul || "",
-                sfxSerangPath: data.sfx?.serang || "",
-                
-                skills: data.skills || { passive: null, normal: null, ultimate: null }
+                lastAttackTime: 0
             };
 
             loadedCharacters.push(charObj);
-            if (loadedCharacters.length > 0) startMatchBtn.style.display = 'block';
+            startBtn.style.display = 'block';
+
+            // Jalankan Custom Script jika ada
+            if (charObj.customLogic) {
+                charObj.customLogic(charObj, { arena, playSFX, terapkanDamage, triggerScreenShake });
+            }
         }
 
         function startMatch() {
             if (!loadedCharacters.length) return;
             isMatchStarted = true;
-            startMatchBtn.style.display = 'none';
-            menuPanel.classList.remove('active');
+            startBtn.style.display = 'none';
         }
 
-        function clearCharacters() {
+        function resetArena() {
             loadedCharacters.forEach(c => c.container.remove());
             loadedCharacters = [];
             isMatchStarted = false;
-            startMatchBtn.style.display = 'none';
+            startBtn.style.display = 'none';
         }
 
-        function playSFXFromPath(path) {
-            if (!path) return;
-            const audio = new Audio(path);
+        function playSFX(url) {
+            if (!url) return;
+            const audio = new Audio(url);
             audio.currentTime = 0;
             audio.play().catch(() => {});
         }
@@ -257,7 +261,7 @@
             caster.isCharging = false;
             caster.container.classList.remove('charging');
 
-            playSFXFromPath(caster.sfxSerangPath); // Play sonic_boom.mp3
+            playSFX(caster.sfxSerangUrl);
             
             const wave = document.createElement('div');
             wave.className = 'sonic-wave';
@@ -266,7 +270,7 @@
             arena.appendChild(wave);
             setTimeout(() => wave.remove(), 400);
 
-            triggerScreenShake(25, ultiConfig.screenShakeDuration || 2.0);
+            triggerScreenShake(25, 2.0);
 
             if (target) {
                 terapkanDamage(target, ultiConfig.damage || 400);
@@ -277,15 +281,14 @@
                 setTimeout(() => {
                     target.isSilenced = false;
                     target.container.classList.remove('silenced');
-                }, (ultiConfig.silenceDuration || 3.0) * 1000);
+                }, 3000);
 
                 const dx = (target.x + target.width / 2) - (caster.x + caster.width / 2);
                 const dy = (target.y + target.height / 2) - (caster.y + caster.height / 2);
                 const dist = Math.hypot(dx, dy) || 1;
 
-                const force = ultiConfig.knockbackForce || 28;
-                target.vx = (dx / dist) * force;
-                target.vy = (dy / dist) * force;
+                target.vx = (dx / dist) * 28;
+                target.vy = (dy / dist) * 28;
             }
         }
 
@@ -298,25 +301,19 @@
             let targetZoom = 1.0;
 
             if (loadedCharacters.length === 2) {
-                const c1 = loadedCharacters[0];
-                const c2 = loadedCharacters[1];
+                const [c1, c2] = loadedCharacters;
                 targetX = ((c1.x + c1.width / 2) + (c2.x + c2.width / 2)) / 2;
                 targetY = ((c1.y + c1.height / 2) + (c2.y + c2.height / 2)) / 2;
                 const dx = Math.abs(c1.x - c2.x) + 280;
                 const dy = Math.abs(c1.y - c2.y) + 280;
                 targetZoom = Math.max(0.45, Math.min(1.6, Math.min(vpWidth / dx, vpHeight / dy)));
-            } else if (loadedCharacters.length === 1) {
-                targetX = loadedCharacters[0].x + loadedCharacters[0].width / 2;
-                targetY = loadedCharacters[0].y + loadedCharacters[0].height / 2;
-                targetZoom = 1.3;
             }
 
             camX += (targetX - camX) * 0.08;
             camY += (targetY - camY) * 0.08;
             currentZoom += (targetZoom - currentZoom) * 0.08;
 
-            let offsetX = 0;
-            let offsetY = 0;
+            let offsetX = 0, offsetY = 0;
             if (shakeDuration > 0) {
                 shakeDuration -= deltaTime;
                 const currentIntensity = shakeIntensity * Math.max(0, shakeDuration / 2.0);
@@ -340,11 +337,12 @@
                 loadedCharacters.forEach(char => {
                     const target = loadedCharacters.find(c => c !== char);
 
-                    if (char.skills.ultimate && !char.isCharging && !char.isSilenced && (now - char.lastUltiTime) >= char.skills.ultimate.cooldown) {
+                    // Skill Warden bawaan (jika ada)
+                    if (char.skills?.ultimate && !char.isCharging && !char.isSilenced && (now - char.lastUltiTime) >= (char.skills.ultimate.cooldown || 8)) {
                         char.isCharging = true;
                         char.lastUltiTime = now;
                         char.container.classList.add('charging');
-                        playSFXFromPath(char.sfxPantulPath); // Play sonic_charge.mp3
+                        playSFX(char.sfxPantulUrl);
 
                         setTimeout(() => {
                             executeSonicBoom(char, target, char.skills.ultimate);
@@ -372,6 +370,7 @@
                     char.container.style.top = `${char.y}px`;
                 });
 
+                // Tabrakan Melee
                 if (loadedCharacters.length === 2) {
                     const [c1, c2] = loadedCharacters;
                     const isColliding = (c1.x < c2.x + c2.width && c1.x + c1.width > c2.x && c1.y < c2.y + c2.height && c1.y + c1.height > c2.y);
@@ -382,13 +381,13 @@
 
                         if (c1.tipeSerangan === 'melee' && !c1.isSilenced && !c1.isCharging && (now - c1.lastAttackTime) >= 0.8) {
                             c1.lastAttackTime = now;
-                            playSFXFromPath(c1.sfxSerangPath);
-                            terapkanDamage(c2, c1.baseDamage);
+                            playSFX(c1.sfxSerangUrl);
+                            terapkanDamage(c2, c1.damage || 10);
                         }
                         if (c2.tipeSerangan === 'melee' && !c2.isSilenced && !c2.isCharging && (now - c2.lastAttackTime) >= 0.8) {
                             c2.lastAttackTime = now;
-                            playSFXFromPath(c2.sfxSerangPath);
-                            terapkanDamage(c1, c2.baseDamage);
+                            playSFX(c2.sfxSerangUrl);
+                            terapkanDamage(c1, c2.damage || 10);
                         }
                     }
                 }
