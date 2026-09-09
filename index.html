@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pilih Karakter JSON</title>
+    <style>
+        body { background: #0f111a; color: #fff; font-family: sans-serif; padding: 20px; }
+        .card { background: #1a1d2e; border: 2px solid #00f0ff; padding: 20px; border-radius: 10px; max-width: 400px; text-align: center; }
+        .btn-select { background: #00f0ff; color: #000; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .btn-select:hover { background: #00b3ff; }
+        .btn-skill { background: #ff0055; color: #fff; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        #char-preview { width: 100px; height: 100px; margin: 15px auto; display: block; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2 id="char-name">Karakter Belum Dipilih</h2>
+        <img id="char-preview" src="" alt="Preview Karakter" style="display:none;">
+        <p id="char-hp">HP: -</p>
+        
+        <!-- Tombol Pilih Karakter -->
+        <button class="btn-select" onclick="pilihKarakter('char/warden/warden.json')">Pilih Warden</button>
+        
+        <br><br>
+        <!-- Tombol Tes Ultimate -->
+        <button id="btn-ult" class="btn-skill" onclick="castUltimate()" style="display:none;">Gunakan Sonic Boom</button>
+    </div>
+
+    <script>
+        let selectedCharacter = null;
+
+        // Fungsi membaca file JSON dari path
+        async function pilihKarakter(jsonPath) {
+            try {
+                const response = await fetch(jsonPath);
+                if (!response.ok) throw new Error("Gagal mengambil file JSON");
+                
+                selectedCharacter = await response.json();
+                
+                // Update Tampilan HTML dari data JSON
+                document.getElementById('char-name').innerText = selectedCharacter.nama;
+                document.getElementById('char-hp').innerText = `HP: ${selectedCharacter.hp}`;
+                
+                const previewImg = document.getElementById('char-preview');
+                previewImg.src = selectedCharacter.gambar;
+                previewImg.style.display = 'block';
+
+                document.getElementById('btn-ult').style.display = 'inline-block';
+                
+                console.log("Karakter berhasil dimuat:", selectedCharacter);
+            } catch (error) {
+                console.error("Error loading JSON:", error);
+                alert("Gagal memuat karakter! Pastikan jalan di Web Server / Live Server.");
+            }
+        }
+
+        // Fungsi Pemutar SFX dari path
+        function playSFX(audioPath) {
+            if (!audioPath) return;
+            const audio = new Audio(audioPath);
+            audio.currentTime = 0;
+            audio.play().catch(err => console.warn("Audio blocked/error:", err));
+        }
+
+        // Mekanik Ultimate (Charge 2 Detik -> Boom)
+        function castUltimate() {
+            if (!selectedCharacter || !selectedCharacter.skills.ultimate) return;
+
+            const ult = selectedCharacter.skills.ultimate;
+            console.log(`[CHARGE] ${ult.nama} dimulai...`);
+            
+            // 1. Putar SFX Charge saat tombol diklik
+            playSFX(selectedCharacter.sfx.pantul);
+
+            // 2. Tembak Sonic Boom setelah chargeDuration selesai (2 detik)
+            setTimeout(() => {
+                console.log(`[BOOM] ${ult.nama} Meledak! Damage: ${ult.damage}`);
+                playSFX(selectedCharacter.sfx.serang);
+            }, ult.chargeDuration * 1000);
+        }
+    </script>
+</body>
+</html>
