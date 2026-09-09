@@ -3,152 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DVD Bounce Sandbox - Modular Engine</title>
+    <title>DVD Bounce Modular Arena Engine</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', sans-serif; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
-        
-        h1 {
-            position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
-            font-size: 18px; color: #fff; text-shadow: 0 0 10px #00f0ff; z-index: 100; pointer-events: none;
+        body { 
+            background-color: #020204; color: #fff; font-family: 'Segoe UI', sans-serif; 
+            width: 100vw; height: 100vh; overflow: hidden; position: relative;
         }
 
-        #top-bar {
-            position: fixed; top: 15px; right: 15px; z-index: 100; display: flex; gap: 10px;
+        h1 {
+            position: fixed; top: 15px; left: 20px; font-size: 18px; color: #00f0ff; 
+            text-shadow: 0 0 10px #00f0ff; z-index: 100; pointer-events: none;
         }
+
+        #top-bar { position: fixed; top: 15px; right: 20px; z-index: 100; display: flex; gap: 10px; }
 
         .btn-ui {
-            background: #00f0ff; color: #000; border: none; padding: 8px 14px;
-            border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 10px #00f0ff; font-size: 12px;
+            background: #00f0ff; color: #000; border: none; padding: 8px 16px; border-radius: 20px;
+            font-weight: bold; cursor: pointer; box-shadow: 0 0 10px #00f0ff; font-size: 13px; transition: 0.2s;
         }
+        .btn-ui:hover { transform: scale(1.05); }
         .btn-start { background: #00ff66; box-shadow: 0 0 10px #00ff66; display: none; }
         .btn-reset { background: #ff0055; color: #fff; box-shadow: 0 0 10px #ff0055; }
 
-        #file-input { display: none; }
+        /* Modal Popup Dynamic */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85);
+            z-index: 200; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px);
+        }
+        .modal-overlay.active { display: flex; }
 
-        #viewport { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; overflow: hidden; background: #050508; }
-
-        #game-arena {
-            width: 1200px; height: 675px; position: absolute; top: 0; left: 0; background-color: #000;
-            border: 5px solid #00f0ff; border-radius: 12px; box-shadow: 0 0 15px #00f0ff, inset 0 0 15px rgba(0, 240, 255, 0.4);
-            transform-origin: 0 0;
+        .modal-box {
+            background: #121526; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px;
+            width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 25px rgba(0, 240, 255, 0.3);
         }
 
+        .modal-box h2 { font-size: 18px; margin-bottom: 15px; color: #00f0ff; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: bold; }
+        .form-group input[type="text"], .form-group input[type="file"] {
+            width: 100%; padding: 8px 12px; background: #0a0c16; border: 1px solid #00f0ff;
+            border-radius: 6px; color: #fff; font-size: 13px;
+        }
+
+        .dynamic-section {
+            background: rgba(0, 240, 255, 0.05); border: 1px dashed #00f0ff; padding: 12px;
+            border-radius: 8px; margin-top: 15px;
+        }
+        .dynamic-section h3 { font-size: 14px; color: #00ff66; margin-bottom: 10px; }
+
+        /* Viewport Camera & Arena Container */
+        #viewport {
+            width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; overflow: hidden;
+        }
+
+        #game-arena {
+            width: 1600px; height: 900px; position: absolute; top: 0; left: 0;
+            background: radial-gradient(circle, #1a1c2e 0%, #0a0b12 100%);
+            border: 6px solid #00f0ff; border-radius: 16px;
+            box-shadow: 0 0 25px #00f0ff, inset 0 0 25px rgba(0, 240, 255, 0.3);
+            transform-origin: 0 0;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #game-arena.warning-active {
+            border-color: #ff0055 !important;
+            box-shadow: 0 0 40px #ff0055, inset 0 0 40px rgba(255, 0, 85, 0.6) !important;
+        }
+
+        /* Elements di Arena */
         .character-container {
             position: absolute; display: flex; flex-direction: column; align-items: center; z-index: 10; will-change: transform;
         }
-
         .hp-bar-outer {
-            width: 100%; height: 7px; background-color: rgba(255, 255, 255, 0.2); border: 1px solid #fff; border-radius: 4px; margin-bottom: 3px; overflow: hidden;
+            width: 100%; height: 8px; background-color: rgba(255, 255, 255, 0.2); border: 1px solid #fff; border-radius: 4px; margin-bottom: 4px; overflow: hidden;
         }
         .hp-bar-inner { height: 100%; width: 100%; background-color: #00ff66; transition: width 0.1s linear; }
+        .character-img { width: 100%; height: calc(100% - 12px); border-radius: 8px; object-fit: cover; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
 
-        .character-img { width: 100%; height: calc(100% - 10px); border-radius: 8px; object-fit: cover; box-shadow: 0 0 10px #ffffff; transition: filter 0.2s; }
-        
-        .charging .character-img { filter: drop-shadow(0 0 15px #00f0ff) brightness(1.5); animation: pulse 0.2s infinite alternate; }
-        .silenced .character-img { filter: grayscale(0.8) sepia(1) hue-rotate(180deg); }
-
-        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
-
-        .sonic-wave {
-            position: absolute; border: 4px solid #00f0ff; border-radius: 50%; background: rgba(0, 240, 255, 0.2);
-            box-shadow: 0 0 20px #00f0ff; pointer-events: none; z-index: 15;
-            animation: sonic-expand 0.4s ease-out forwards;
+        .projectile {
+            position: absolute; border-radius: 50%; pointer-events: none; z-index: 15;
+            box-shadow: 0 0 12px currentColor;
         }
-        @keyframes sonic-expand {
-            0% { width: 10px; height: 10px; opacity: 1; transform: translate(-50%, -50%); }
-            100% { width: 500px; height: 500px; opacity: 0; transform: translate(-50%, -50%); }
+
+        .slash-effect {
+            position: absolute; border: 3px solid #ff0055; border-radius: 50%; pointer-events: none; z-index: 14;
+            animation: slash-anim 0.25s ease-out forwards;
+        }
+        @keyframes slash-anim {
+            0% { transform: scale(0.2) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1.5) rotate(45deg); opacity: 0; }
         }
 
         .floating-text {
-            position: absolute; font-weight: bold; font-size: 14px; pointer-events: none; z-index: 20; animation: float-up 0.8s ease-out forwards;
+            position: absolute; font-weight: bold; font-size: 16px; pointer-events: none; z-index: 25; 
+            text-shadow: 0 0 5px #000; animation: float-up 0.8s ease-out forwards;
         }
-        @keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
+        @keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-35px); } }
+
+        #arena-flash {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100; opacity: 0; transition: opacity 0.1s;
+        }
+
+        /* --- TEKS HIJAU BESAR VICTORY ANNOUNCEMENT --- */
+        #victory-banner {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            font-size: 68px; font-weight: 900; color: #00ff66;
+            text-transform: uppercase; letter-spacing: 4px;
+            text-shadow: 0 0 20px #00ff66, 0 0 40px #00ff66, 0 0 60px #000000;
+            z-index: 300; opacity: 0; pointer-events: none;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out;
+            text-align: center; width: 100%;
+        }
+
+        #victory-banner.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
     </style>
 </head>
 <body>
 
-    <h1>DVD Bounce Sandbox Arena</h1>
+    <h1>DVD Bounce Modular Arena Engine</h1>
 
     <div id="top-bar">
-        <button class="btn-ui" onclick="document.getElementById('file-input').click()">📁 Upload Karakter</button>
-        <button id="start-btn" class="btn-ui btn-start" onclick="startMatch()">▶️ Start</button>
-        <button class="btn-ui btn-reset" onclick="resetArena()">Reset</button>
+        <button class="btn-ui" onclick="openAddCharModal()">➕ Tambah Karakter</button>
+        <button id="start-btn" class="btn-ui btn-start" onclick="startMatch()">▶️ Start Battle</button>
+        <button class="btn-ui btn-reset" onclick="resetArena()">Reset Arena</button>
     </div>
 
-    <!-- Multi-file / Folder selector -->
-    <input type="file" id="file-input" multiple webkitdirectory directory onchange="handleFileUpload(event)">
+    <!-- VICTORY TEKS BANNER -->
+    <div id="victory-banner">WINNER!</div>
+
+    <!-- MODAL POPUP PARSER KARAKTER -->
+    <div id="char-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Kustomisasi Karakter Baru</h2>
+            
+            <div class="form-group">
+                <label>Nama Karakter:</label>
+                <input type="text" id="char-name-input" value="Lukas">
+            </div>
+
+            <div class="form-group">
+                <label>Upload Script JavaScript (.js) [WAJIB]:</label>
+                <input type="file" id="js-file-input" accept=".js">
+            </div>
+
+            <button class="btn-ui" style="width: 100%;" onclick="renderAndAnalyzeJS()">🔍 Render & Analisis Script</button>
+
+            <div id="dynamic-form-area" style="display: none;">
+                <div id="images-section" class="dynamic-section" style="display: none;">
+                    <h3>🖼️ Gambar/Sprites Terdeteksi:</h3>
+                    <div id="images-input-list"></div>
+                </div>
+
+                <div id="sfx-section" class="dynamic-section" style="display: none;">
+                    <h3>🔊 Audio/SFX Terdeteksi:</h3>
+                    <div id="sfx-input-list"></div>
+                </div>
+
+                <button class="btn-ui btn-start" style="width: 100%; margin-top: 20px; display: block;" onclick="saveCharacterToArena()">💾 Simpan Karakter ke Arena</button>
+            </div>
+        </div>
+    </div>
 
     <div id="viewport">
-        <div id="game-arena"></div>
+        <div id="game-arena">
+            <div id="arena-flash"></div>
+        </div>
     </div>
 
     <script>
+        const viewport = document.getElementById('viewport');
         const arena = document.getElementById('game-arena');
+        const arenaFlash = document.getElementById('arena-flash');
         const startBtn = document.getElementById('start-btn');
+        const victoryBanner = document.getElementById('victory-banner');
 
-        const WORLD_WIDTH = 1200;
-        const WORLD_HEIGHT = 675;
-        const BASE_WIDTH = 60;
-        const BASE_HEIGHT = 75;
+        const WORLD_WIDTH = 1600;
+        const WORLD_HEIGHT = 900;
 
         let loadedCharacters = [];
+        let projectiles = [];
         let isMatchStarted = false;
+        let isGameOver = false;
+        let winnerCharacter = null;
 
-        let camX = WORLD_WIDTH / 2;
-        let camY = WORLD_HEIGHT / 2;
-        let currentZoom = 1.0;
+        // Camera State
+        let camera = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, zoom: 1 };
         let shakeIntensity = 0;
-        let shakeDuration = 0;
+        let shakeTimer = 0;
 
-        // --- SISTEM UPLOAD DAN PARSING BLOB ---
-        async function handleFileUpload(event) {
-            const files = Array.from(event.target.files);
-            if (!files.length) return;
+        // Time Dilation State
+        let timeScale = 1.0;
+        let slowMotionTimer = 0;
 
-            // Cari file .json
-            const jsonFile = files.find(f => f.name.endsWith('.json'));
-            if (!jsonFile) return alert("File JSON karakter tidak ditemukan!");
+        // Temporal Storage
+        let tempJSCode = "";
+        let detectedImgVars = [];
+        let detectedSFXVars = [];
 
-            try {
-                const jsonText = await jsonFile.text();
-                const charData = JSON.parse(jsonText);
-
-                // Map semua file terkait ke URL Blob lokal
-                const fileMap = {};
-                files.forEach(f => {
-                    fileMap[f.name] = URL.createObjectURL(f);
-                });
-
-                // Tautkan aset gambar & audio dari fileMap
-                if (charData.gambar && fileMap[charData.gambar]) {
-                    charData.gambarUrl = fileMap[charData.gambar];
-                }
-                if (charData.sfx) {
-                    if (charData.sfx.pantul && fileMap[charData.sfx.pantul]) charData.sfxPantulUrl = fileMap[charData.sfx.pantul];
-                    if (charData.sfx.serang && fileMap[charData.sfx.serang]) charData.sfxSerangUrl = fileMap[charData.sfx.serang];
-                }
-
-                // Eksekusi JS Kustom jika karakter punya file script khusus
-                if (charData.script && fileMap[charData.script]) {
-                    const scriptText = await files.find(f => f.name === charData.script).text();
-                    const scriptFn = new Function('character', 'engine', scriptText);
-                    charData.customLogic = scriptFn;
-                }
-
-                tambahkanKarakter(charData);
-            } catch (err) {
-                console.error("Error parsing folder karakter:", err);
-                alert("Format file karakter rusak/tidak valid!");
-            }
+        function openAddCharModal() {
+            if (loadedCharacters.length >= 2) return alert("Arena Maksimal 2 Karakter!");
+            document.getElementById('char-modal').classList.add('active');
         }
 
-        function tambahkanKarakter(data) {
-            if (loadedCharacters.length >= 2) return alert("Arena Maksimal 2 Karakter!");
+        function closeAddCharModal() {
+            document.getElementById('char-modal').classList.remove('active');
+            document.getElementById('dynamic-form-area').style.display = 'none';
+        }
 
-            const scale = data.ukuran || 1.0;
-            const charWidth = BASE_WIDTH * scale;
-            const charHeight = BASE_HEIGHT * scale;
+        // --- 1. PARSER JAVASCRIPT DINAMIS ---
+        async function renderAndAnalyzeJS() {
+            const jsInput = document.getElementById('js-file-input');
+            if (!jsInput.files.length) return alert("Upload file JavaScript (.js) terlebih dahulu!");
+
+            tempJSCode = await jsInput.files[0].text();
+
+            const imgRegex = /(?:gambar|img|sprite)_([a-zA-Z0-9_]+)/gi;
+            const sfxRegex = /(?:sfx|audio|sound)_([a-zA-Z0-9_]+)/gi;
+
+            detectedImgVars = [...new Set([...tempJSCode.matchAll(imgRegex)].map(m => m[0]))];
+            detectedSFXVars = [...new Set([...tempJSCode.matchAll(sfxRegex)].map(m => m[0]))];
+
+            const dynamicArea = document.getElementById('dynamic-form-area');
+            const imagesSec = document.getElementById('images-section');
+            const sfxSec = document.getElementById('sfx-section');
+            const imgList = document.getElementById('images-input-list');
+            const sfxList = document.getElementById('sfx-input-list');
+
+            imgList.innerHTML = "";
+            sfxList.innerHTML = "";
+
+            if (detectedImgVars.length > 0) {
+                imagesSec.style.display = 'block';
+                detectedImgVars.forEach(varName => {
+                    imgList.innerHTML += `
+                        <div class="form-group">
+                            <label>Variabel <b>${varName}</b> (Gambar/PNG):</label>
+                            <input type="file" data-var="${varName}" class="dynamic-img-input" accept="image/*">
+                        </div>`;
+                });
+            } else { imagesSec.style.display = 'none'; }
+
+            if (detectedSFXVars.length > 0) {
+                sfxSec.style.display = 'block';
+                detectedSFXVars.forEach(varName => {
+                    sfxList.innerHTML += `
+                        <div class="form-group">
+                            <label>Variabel <b>${varName}</b> (Audio/MP3):</label>
+                            <input type="file" data-var="${varName}" class="dynamic-sfx-input" accept="audio/*">
+                        </div>`;
+                });
+            } else { sfxSec.style.display = 'none'; }
+
+            dynamicArea.style.display = 'block';
+            alert(`Analisis Berhasil!\nTerdeteksi: ${detectedImgVars.length} Gambar & ${detectedSFXVars.length} SFX.`);
+        }
+
+        // --- 2. SIMPAN KARAKTER ---
+        async function saveCharacterToArena() {
+            const charName = document.getElementById('char-name-input').value || "Karakter";
+            const assetsMap = { images: {}, sfx: {} };
+
+            document.querySelectorAll('.dynamic-img-input').forEach(input => {
+                if (input.files.length) assetsMap.images[input.getAttribute('data-var')] = URL.createObjectURL(input.files[0]);
+            });
+
+            document.querySelectorAll('.dynamic-sfx-input').forEach(input => {
+                if (input.files.length) assetsMap.sfx[input.getAttribute('data-var')] = URL.createObjectURL(input.files[0]);
+            });
+
+            let customScriptFn = null;
+            try {
+                customScriptFn = new Function('self', 'engine', tempJSCode);
+            } catch (e) {
+                return alert("Gagal mengompilasi JavaScript: " + e.message);
+            }
+
+            tambahkanKarakterKeEngine(charName, assetsMap, customScriptFn);
+            closeAddCharModal();
+        }
+
+        function tambahkanKarakterKeEngine(nama, assetsMap, scriptFn) {
+            const charWidth = 100;
+            const charHeight = 120;
 
             const container = document.createElement('div');
             container.className = 'character-container';
@@ -162,7 +303,8 @@
             hpOuter.appendChild(hpInner);
 
             const img = document.createElement('img');
-            img.src = data.gambarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='75'><rect width='60' height='75' fill='%23555'/></svg>";
+            const defaultImg = Object.values(assetsMap.images)[0] || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='75'><rect width='60' height='75' fill='%2300f0ff'/></svg>";
+            img.src = defaultImg;
             img.className = 'character-img';
 
             container.appendChild(hpOuter);
@@ -170,231 +312,307 @@
             arena.appendChild(container);
 
             const isFirst = loadedCharacters.length === 0;
-            const isInfiniteHp = data.hp === 'infinite' || data.hp === 'inf';
 
             const charObj = {
-                ...data,
+                id: Math.random().toString(36).substring(2, 9),
+                nama,
                 container,
+                imgElement: img,
                 hpInner,
-                isInfiniteHp,
-                maxHp: isInfiniteHp ? Infinity : (data.hp || 100),
-                currentHp: isInfiniteHp ? Infinity : (data.hp || 100),
+                maxHp: 1000,
+                currentHp: 1000,
                 width: charWidth,
                 height: charHeight,
                 x: isFirst ? 200 : WORLD_WIDTH - 200 - charWidth,
                 y: WORLD_HEIGHT / 2 - (charHeight / 2),
-                vx: isFirst ? (data.kecepatan?.vx || 3) : -(data.kecepatan?.vx || 3),
-                vy: data.kecepatan?.vy || 3,
-                baseSpeedX: data.kecepatan?.vx || 3,
-                baseSpeedY: data.kecepatan?.vy || 3,
-                
-                isCharging: false,
-                isSilenced: false,
-                lastUltiTime: 0,
-                lastAttackTime: 0
+                vx: isFirst ? 4 : -4,
+                vy: 3,
+                assets: assetsMap,
+
+                setSprite: function(varName) {
+                    if (this.assets.images[varName]) this.imgElement.src = this.assets.images[varName];
+                },
+                playSFX: function(varName) {
+                    if (this.assets.sfx[varName]) {
+                        const audio = new Audio(this.assets.sfx[varName]);
+                        audio.play().catch(() => {});
+                    }
+                },
+                kurangiHp: function(jumlah) {
+                    if (isGameOver) return;
+                    this.currentHp = Math.max(0, this.currentHp - jumlah);
+                    this.hpInner.style.width = `${(this.currentHp / this.maxHp) * 100}%`;
+
+                    // Cek Kemenangan
+                    if (this.currentHp <= 0) {
+                        const pemenang = loadedCharacters.find(c => c.id !== this.id);
+                        if (pemenang) ENGINE_API.karakterMenang(pemenang);
+                    }
+                }
             };
+
+            if (scriptFn) scriptFn(charObj, ENGINE_API);
 
             loadedCharacters.push(charObj);
             startBtn.style.display = 'block';
+        }
 
-            // Jalankan Custom Script jika ada
-            if (charObj.customLogic) {
-                charObj.customLogic(charObj, { arena, playSFX, terapkanDamage, triggerScreenShake });
+        // ==========================================
+        // --- FITUR ENGINE & MEDAN (ENGINE API) ---
+        // ==========================================
+        const ENGINE_API = {
+            // EVENT MENANG / KEMENANGAN
+            karakterMenang: function(pemenang) {
+                if (isGameOver) return;
+                isGameOver = true;
+                isMatchStarted = false;
+                winnerCharacter = pemenang;
+
+                // Tampilkan Teks Tepat di Tengah Layar
+                victoryBanner.innerHTML = `${pemenang.nama} Wins!!`;
+                victoryBanner.classList.add('show');
+
+                // Efek Medan Kemenangan
+                ENGINE_API.kilatanLayar("rgba(0, 255, 102, 0.4)", 400);
+                ENGINE_API.guncangan_arena(1.2, 25);
+
+                // Coba putar SFX selebrasi/win jika ada di script pemenang
+                pemenang.playSFX('sfx_win');
+            },
+
+            guncangan_arena: function(durasiDetik = 1.0, intensitas = 15) {
+                shakeTimer = durasiDetik * 60;
+                shakeIntensity = intensitas;
+            },
+
+            peringatan_serangan: function(durasiDetik = 1.0, warnaHex = "#ff0055") {
+                arena.classList.add('warning-active');
+                if (warnaHex) arena.style.borderColor = warnaHex;
+                setTimeout(() => {
+                    arena.classList.remove('warning-active');
+                    arena.style.borderColor = '#00f0ff';
+                }, durasiDetik * 1000);
+            },
+
+            kilatanLayar: function(warna = "rgba(255, 255, 255, 0.5)", durasiMs = 200) {
+                arenaFlash.style.backgroundColor = warna;
+                arenaFlash.style.opacity = '1';
+                setTimeout(() => arenaFlash.style.opacity = '0', durasiMs);
+            },
+
+            buatProyektil: function(pemilik, opsi = {}) {
+                if (isGameOver) return;
+                const target = loadedCharacters.find(c => c.id !== pemilik.id);
+                if (!target) return;
+
+                const startX = pemilik.x + pemilik.width / 2;
+                const startY = pemilik.y + pemilik.height / 2;
+                const targetX = target.x + target.width / 2;
+                const targetY = target.y + target.height / 2;
+
+                const angle = Math.atan2(targetY - startY, targetX - startX);
+                const speed = opsi.kecepatan || 10;
+
+                const el = document.createElement('div');
+                el.className = 'projectile';
+                el.style.width = `${opsi.ukuran || 20}px`;
+                el.style.height = `${opsi.ukuran || 20}px`;
+                el.style.backgroundColor = opsi.warna || '#00f0ff';
+                el.style.color = opsi.warna || '#00f0ff';
+                arena.appendChild(el);
+
+                projectiles.push({
+                    element: el,
+                    pemilik,
+                    target,
+                    x: startX,
+                    y: startY,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    damage: opsi.damage || 50,
+                    radius: (opsi.ukuran || 20) / 2
+                });
+            },
+
+            seranganAreaMelee: function(pemilik, opsi = {}) {
+                if (isGameOver) return;
+                const target = loadedCharacters.find(c => c.id !== pemilik.id);
+                if (!target) return;
+
+                const jarak = ENGINE_API.hitungJarak(pemilik, target);
+                const jangkauan = opsi.jangkauan || 150;
+
+                const slash = document.createElement('div');
+                slash.className = 'slash-effect';
+                slash.style.width = `${jangkauan}px`;
+                slash.style.height = `${jangkauan}px`;
+                slash.style.left = `${pemilik.x + pemilik.width / 2 - jangkauan/2}px`;
+                slash.style.top = `${pemilik.y + pemilik.height / 2 - jangkauan/2}px`;
+                if (opsi.warna) slash.style.borderColor = opsi.warna;
+                arena.appendChild(slash);
+                setTimeout(() => slash.remove(), 250);
+
+                if (jarak <= jangkauan) {
+                    target.kurangiHp(opsi.damage || 80);
+                    ENGINE_API.showFloatingText(target.x, target.y, `-${opsi.damage || 80} SLICE!`, opsi.warna || "#ff0055");
+                    ENGINE_API.guncangan_arena(0.3, 10);
+                }
+            },
+
+            lambatkanWaktu: function(durasiDetik = 1.0, skala = 0.3) {
+                timeScale = skala;
+                slowMotionTimer = durasiDetik * 60;
+            },
+
+            hitungJarak: function(charA, charB) {
+                const dx = (charA.x + charA.width / 2) - (charB.x + charB.width / 2);
+                const dy = (charA.y + charA.height / 2) - (charB.y + charB.height / 2);
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+
+            showFloatingText: function(x, y, text, color = "#ff0055") {
+                const el = document.createElement('div');
+                el.className = 'floating-text';
+                el.innerText = text;
+                el.style.color = color;
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                arena.appendChild(el);
+                setTimeout(() => el.remove(), 800);
+            },
+
+            dapatkanLawan: function(self) {
+                return loadedCharacters.find(c => c.id !== self.id);
             }
+        };
+
+        // --- CAMERA SYSTEM & WINNER FOCUS ---
+        function updateCamera() {
+            if (loadedCharacters.length === 0) return;
+
+            let targetX = WORLD_WIDTH / 2;
+            let targetY = WORLD_HEIGHT / 2;
+
+            if (isGameOver && winnerCharacter) {
+                // Focus Zoom ke Pemenang
+                targetX = winnerCharacter.x + winnerCharacter.width / 2;
+                targetY = winnerCharacter.y + winnerCharacter.height / 2;
+                camera.zoom += (1.4 - camera.zoom) * 0.05;
+            } else if (loadedCharacters.length === 1) {
+                targetX = loadedCharacters[0].x + loadedCharacters[0].width / 2;
+                targetY = loadedCharacters[0].y + loadedCharacters[0].height / 2;
+            } else if (loadedCharacters.length >= 2) {
+                const c1 = loadedCharacters[0];
+                const c2 = loadedCharacters[1];
+                targetX = (c1.x + c2.x + c1.width) / 2;
+                targetY = (c1.y + c2.y + c1.height) / 2;
+
+                const dx = Math.abs(c1.x - c2.x);
+                const dy = Math.abs(c1.y - c2.y);
+                const maxDist = Math.max(dx, dy);
+
+                let desiredZoom = 1200 / (maxDist + 400);
+                camera.zoom += (Math.min(Math.max(desiredZoom, 0.6), 1.2) - camera.zoom) * 0.05;
+            }
+
+            camera.x += (targetX - camera.x) * 0.08;
+            camera.y += (targetY - camera.y) * 0.08;
+
+            let offsetX = 0;
+            let offsetY = 0;
+
+            if (shakeTimer > 0) {
+                const currentIntensity = (shakeTimer / 60) * shakeIntensity;
+                offsetX = (Math.random() - 0.5) * currentIntensity;
+                offsetY = (Math.random() - 0.5) * currentIntensity;
+                shakeTimer--;
+            }
+
+            const viewW = viewport.clientWidth;
+            const viewH = viewport.clientHeight;
+
+            const scale = camera.zoom;
+            const tx = (viewW / 2) - (camera.x * scale) + offsetX;
+            const ty = (viewH / 2) - (camera.y * scale) + offsetY;
+
+            arena.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        }
+
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.x += p.vx * timeScale;
+                p.y += p.vy * timeScale;
+
+                p.element.style.left = `${p.x - p.radius}px`;
+                p.element.style.top = `${p.y - p.radius}px`;
+
+                const target = p.target;
+                if (
+                    p.x >= target.x && p.x <= target.x + target.width &&
+                    p.y >= target.y && p.y <= target.y + target.height
+                ) {
+                    target.kurangiHp(p.damage);
+                    ENGINE_API.showFloatingText(target.x, target.y, `-${p.damage} HIT!`, p.element.style.backgroundColor);
+                    ENGINE_API.guncangan_arena(0.2, 8);
+                    p.element.remove();
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                if (p.x < 0 || p.x > WORLD_WIDTH || p.y < 0 || p.y > WORLD_HEIGHT) {
+                    p.element.remove();
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (slowMotionTimer > 0) {
+                slowMotionTimer--;
+                if (slowMotionTimer <= 0) timeScale = 1.0;
+            }
+
+            if (isMatchStarted && !isGameOver) {
+                loadedCharacters.forEach(char => {
+                    char.x += char.vx * timeScale;
+                    char.y += char.vy * timeScale;
+
+                    if (char.x <= 0 || char.x + char.width >= WORLD_WIDTH) char.vx *= -1;
+                    if (char.y <= 0 || char.y + char.height >= WORLD_HEIGHT) char.vy *= -1;
+
+                    char.container.style.left = `${char.x}px`;
+                    char.container.style.top = `${char.y}px`;
+
+                    if (char.onUpdate) char.onUpdate();
+                });
+
+                updateProjectiles();
+            }
+
+            updateCamera();
+            requestAnimationFrame(gameLoop);
         }
 
         function startMatch() {
             if (!loadedCharacters.length) return;
             isMatchStarted = true;
+            isGameOver = false;
+            winnerCharacter = null;
+            victoryBanner.classList.remove('show');
             startBtn.style.display = 'none';
         }
 
         function resetArena() {
             loadedCharacters.forEach(c => c.container.remove());
+            projectiles.forEach(p => p.element.remove());
             loadedCharacters = [];
+            projectiles = [];
             isMatchStarted = false;
+            isGameOver = false;
+            winnerCharacter = null;
+            victoryBanner.classList.remove('show');
             startBtn.style.display = 'none';
-        }
-
-        function playSFX(url) {
-            if (!url) return;
-            const audio = new Audio(url);
-            audio.currentTime = 0;
-            audio.play().catch(() => {});
-        }
-
-        function showFloatingText(x, y, text, color = "#ff0055") {
-            const el = document.createElement('div');
-            el.className = 'floating-text';
-            el.innerText = text;
-            el.style.color = color;
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
-            arena.appendChild(el);
-            setTimeout(() => el.remove(), 800);
-        }
-
-        function terapkanDamage(target, damage) {
-            if (!target || target.isInfiniteHp) {
-                if (target?.isInfiniteHp) showFloatingText(target.x, target.y - 10, "IMMUNE", "#00f0ff");
-                return;
-            }
-
-            target.currentHp = Math.max(0, target.currentHp - damage);
-            showFloatingText(target.x, target.y - 10, `-${damage}`, "#ff0055");
-            target.hpInner.style.width = `${(target.currentHp / target.maxHp) * 100}%`;
-
-            if (target.currentHp === 0) {
-                setTimeout(() => {
-                    target.container.remove();
-                    loadedCharacters = loadedCharacters.filter(c => c !== target);
-                }, 50);
-            }
-        }
-
-        function triggerScreenShake(intensity, duration) {
-            shakeIntensity = intensity;
-            shakeDuration = duration;
-        }
-
-        function executeSonicBoom(caster, target, ultiConfig) {
-            caster.isCharging = false;
-            caster.container.classList.remove('charging');
-
-            playSFX(caster.sfxSerangUrl);
-            
-            const wave = document.createElement('div');
-            wave.className = 'sonic-wave';
-            wave.style.left = `${caster.x + caster.width / 2}px`;
-            wave.style.top = `${caster.y + caster.height / 2}px`;
-            arena.appendChild(wave);
-            setTimeout(() => wave.remove(), 400);
-
-            triggerScreenShake(25, 2.0);
-
-            if (target) {
-                terapkanDamage(target, ultiConfig.damage || 400);
-                target.isSilenced = true;
-                target.container.classList.add('silenced');
-                showFloatingText(target.x, target.y - 30, "SILENCED!", "#00f0ff");
-
-                setTimeout(() => {
-                    target.isSilenced = false;
-                    target.container.classList.remove('silenced');
-                }, 3000);
-
-                const dx = (target.x + target.width / 2) - (caster.x + caster.width / 2);
-                const dy = (target.y + target.height / 2) - (caster.y + caster.height / 2);
-                const dist = Math.hypot(dx, dy) || 1;
-
-                target.vx = (dx / dist) * 28;
-                target.vy = (dy / dist) * 28;
-            }
-        }
-
-        function updateCamera(deltaTime) {
-            const vpWidth = window.innerWidth;
-            const vpHeight = window.innerHeight;
-
-            let targetX = WORLD_WIDTH / 2;
-            let targetY = WORLD_HEIGHT / 2;
-            let targetZoom = 1.0;
-
-            if (loadedCharacters.length === 2) {
-                const [c1, c2] = loadedCharacters;
-                targetX = ((c1.x + c1.width / 2) + (c2.x + c2.width / 2)) / 2;
-                targetY = ((c1.y + c1.height / 2) + (c2.y + c2.height / 2)) / 2;
-                const dx = Math.abs(c1.x - c2.x) + 280;
-                const dy = Math.abs(c1.y - c2.y) + 280;
-                targetZoom = Math.max(0.45, Math.min(1.6, Math.min(vpWidth / dx, vpHeight / dy)));
-            }
-
-            camX += (targetX - camX) * 0.08;
-            camY += (targetY - camY) * 0.08;
-            currentZoom += (targetZoom - currentZoom) * 0.08;
-
-            let offsetX = 0, offsetY = 0;
-            if (shakeDuration > 0) {
-                shakeDuration -= deltaTime;
-                const currentIntensity = shakeIntensity * Math.max(0, shakeDuration / 2.0);
-                offsetX = (Math.random() - 0.5) * currentIntensity;
-                offsetY = (Math.random() - 0.5) * currentIntensity;
-            }
-
-            const transformX = (vpWidth / 2) - (camX * currentZoom) + offsetX;
-            const transformY = (vpHeight / 2) - (camY * currentZoom) + offsetY;
-
-            arena.style.transform = `translate(${transformX}px, ${transformY}px) scale(${currentZoom})`;
-        }
-
-        let lastTimestamp = 0;
-        function gameLoop(timestamp) {
-            const deltaTime = (timestamp - lastTimestamp) / 1000 || 0;
-            lastTimestamp = timestamp;
-            const now = timestamp / 1000;
-
-            if (isMatchStarted) {
-                loadedCharacters.forEach(char => {
-                    const target = loadedCharacters.find(c => c !== char);
-
-                    // Skill Warden bawaan (jika ada)
-                    if (char.skills?.ultimate && !char.isCharging && !char.isSilenced && (now - char.lastUltiTime) >= (char.skills.ultimate.cooldown || 8)) {
-                        char.isCharging = true;
-                        char.lastUltiTime = now;
-                        char.container.classList.add('charging');
-                        playSFX(char.sfxPantulUrl);
-
-                        setTimeout(() => {
-                            executeSonicBoom(char, target, char.skills.ultimate);
-                        }, (char.skills.ultimate.chargeDuration || 2.0) * 1000);
-                    }
-
-                    if (!char.isCharging) {
-                        char.x += char.vx;
-                        char.y += char.vy;
-
-                        if (Math.abs(char.vx) > char.baseSpeedX) char.vx *= 0.95;
-                        if (Math.abs(char.vy) > char.baseSpeedY) char.vy *= 0.95;
-
-                        if (char.x <= 0 || char.x + char.width >= WORLD_WIDTH) {
-                            char.vx *= -1;
-                            char.x = char.x <= 0 ? 0 : WORLD_WIDTH - char.width;
-                        }
-                        if (char.y <= 0 || char.y + char.height >= WORLD_HEIGHT) {
-                            char.vy *= -1;
-                            char.y = char.y <= 0 ? 0 : WORLD_HEIGHT - char.height;
-                        }
-                    }
-
-                    char.container.style.left = `${char.x}px`;
-                    char.container.style.top = `${char.y}px`;
-                });
-
-                // Tabrakan Melee
-                if (loadedCharacters.length === 2) {
-                    const [c1, c2] = loadedCharacters;
-                    const isColliding = (c1.x < c2.x + c2.width && c1.x + c1.width > c2.x && c1.y < c2.y + c2.height && c1.y + c1.height > c2.y);
-
-                    if (isColliding) {
-                        c1.vx *= -1; c1.vy *= -1;
-                        c2.vx *= -1; c2.vy *= -1;
-
-                        if (c1.tipeSerangan === 'melee' && !c1.isSilenced && !c1.isCharging && (now - c1.lastAttackTime) >= 0.8) {
-                            c1.lastAttackTime = now;
-                            playSFX(c1.sfxSerangUrl);
-                            terapkanDamage(c2, c1.damage || 10);
-                        }
-                        if (c2.tipeSerangan === 'melee' && !c2.isSilenced && !c2.isCharging && (now - c2.lastAttackTime) >= 0.8) {
-                            c2.lastAttackTime = now;
-                            playSFX(c2.sfxSerangUrl);
-                            terapkanDamage(c1, c2.damage || 10);
-                        }
-                    }
-                }
-            }
-
-            updateCamera(deltaTime);
-            requestAnimationFrame(gameLoop);
         }
 
         requestAnimationFrame(gameLoop);
