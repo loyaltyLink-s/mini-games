@@ -2,84 +2,403 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pilih Karakter JSON</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DVD Bounce Battle Arena - Local JSON Loader</title>
     <style>
-        body { background: #0f111a; color: #fff; font-family: sans-serif; padding: 20px; }
-        .card { background: #1a1d2e; border: 2px solid #00f0ff; padding: 20px; border-radius: 10px; max-width: 400px; text-align: center; }
-        .btn-select { background: #00f0ff; color: #000; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
-        .btn-select:hover { background: #00b3ff; }
-        .btn-skill { background: #ff0055; color: #fff; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-        #char-preview { width: 100px; height: 100px; margin: 15px auto; display: block; border-radius: 8px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', sans-serif; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+        
+        h1 {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+            font-size: 18px; color: #fff; text-shadow: 0 0 10px #00f0ff; z-index: 100; pointer-events: none;
+        }
+
+        #toggle-menu-btn {
+            position: fixed; top: 15px; right: 15px; z-index: 100; background: #00f0ff; color: #000;
+            border: none; padding: 8px 14px; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 12px #00f0ff; font-size: 12px;
+        }
+
+        #menu-panel {
+            position: fixed; top: 55px; right: 15px; z-index: 99; background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00f0ff; border-radius: 10px; padding: 12px; width: 250px; display: none; flex-direction: column; gap: 8px; backdrop-filter: blur(5px);
+        }
+        #menu-panel.active { display: flex; }
+
+        .btn-ui {
+            padding: 8px; border-radius: 6px; border: 1px solid #00f0ff; background: rgba(0, 240, 255, 0.1);
+            color: #00f0ff; font-size: 12px; font-weight: bold; text-align: center; cursor: pointer; transition: 0.2s;
+        }
+        .btn-ui:hover { background: #00f0ff; color: #000; }
+        #start-match-btn { background: #00ff66; color: #000; border: none; box-shadow: 0 0 10px #00ff66; display: none; }
+        .btn-clear { background: #ff0055; color: #fff; border: none; }
+
+        #viewport { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; overflow: hidden; background: #050508; }
+
+        #game-arena {
+            width: 1200px; height: 675px; position: absolute; top: 0; left: 0; background-color: #000;
+            border: 5px solid #00f0ff; border-radius: 12px; box-shadow: 0 0 15px #00f0ff, inset 0 0 15px rgba(0, 240, 255, 0.4);
+            transform-origin: 0 0;
+        }
+
+        .arena-bg-image {
+            width: 500px; height: 500px; object-fit: contain; pointer-events: none; position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.8; z-index: 1;
+        }
+
+        .character-container {
+            position: absolute; display: flex; flex-direction: column; align-items: center; z-index: 10; will-change: transform;
+        }
+
+        .hp-bar-outer {
+            width: 100%; height: 7px; background-color: rgba(255, 255, 255, 0.2); border: 1px solid #fff; border-radius: 4px; margin-bottom: 3px; overflow: hidden;
+        }
+        .hp-bar-inner { height: 100%; width: 100%; background-color: #00ff66; transition: width 0.1s linear; }
+
+        .character-img { width: 100%; height: calc(100% - 10px); border-radius: 8px; object-fit: cover; box-shadow: 0 0 10px #ffffff; transition: filter 0.2s; }
+        
+        .charging .character-img { filter: drop-shadow(0 0 15px #00f0ff) brightness(1.5); animation: pulse 0.2s infinite alternate; }
+        .silenced .character-img { filter: grayscale(0.8) sepia(1) hue-rotate(180deg); }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        .sonic-wave {
+            position: absolute; border: 4px solid #00f0ff; border-radius: 50%; background: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 20px #00f0ff, inset 0 0 15px #ffffff; pointer-events: none; z-index: 15;
+            animation: sonic-expand 0.4s ease-out forwards;
+        }
+
+        @keyframes sonic-expand {
+            0% { width: 10px; height: 10px; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { width: 500px; height: 500px; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .floating-text {
+            position: absolute; font-weight: bold; font-size: 14px; pointer-events: none; z-index: 20; animation: float-up 0.8s ease-out forwards;
+        }
+        @keyframes float-up { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2 id="char-name">Karakter Belum Dipilih</h2>
-        <img id="char-preview" src="" alt="Preview Karakter" style="display:none;">
-        <p id="char-hp">HP: -</p>
+    <h1>DVD Bounce Battle Arena</h1>
+
+    <button id="toggle-menu-btn" onclick="toggleMenuPanel()">⚙️ Pilih Karakter</button>
+
+    <div id="menu-panel">
+        <button class="btn-ui" onclick="loadCharacterFromJSON('char/warden/warden.json')">+ Tambah Warden</button>
+        <button class="btn-ui" onclick="loadCharacterFromJSON('char/dummy/practice_dummy.json')">+ Tambah Dummy</button>
         
-        <!-- Tombol Pilih Karakter -->
-        <button class="btn-select" onclick="pilihKarakter('char/warden/warden.json')">Pilih Warden</button>
-        
-        <br><br>
-        <!-- Tombol Tes Ultimate -->
-        <button id="btn-ult" class="btn-skill" onclick="castUltimate()" style="display:none;">Gunakan Sonic Boom</button>
+        <button id="start-match-btn" class="btn-ui" onclick="startMatch()">▶️ Start Match</button>
+        <button class="btn-ui btn-clear" onclick="clearCharacters()">Reset Arena</button>
+    </div>
+
+    <div id="viewport">
+        <div id="game-arena">
+            <img src="https://lh3.googleusercontent.com/d/1INpDOkYg-invOZ08SNiQs9bq6c5g0lrp" class="arena-bg-image">
+        </div>
     </div>
 
     <script>
-        let selectedCharacter = null;
+        const arena = document.getElementById('game-arena');
+        const menuPanel = document.getElementById('menu-panel');
+        const startMatchBtn = document.getElementById('start-match-btn');
 
-        // Fungsi membaca file JSON dari path
-        async function pilihKarakter(jsonPath) {
+        const WORLD_WIDTH = 1200;
+        const WORLD_HEIGHT = 675;
+        const BASE_WIDTH = 60;
+        const BASE_HEIGHT = 75;
+
+        let loadedCharacters = [];
+        let isMatchStarted = false;
+
+        let camX = WORLD_WIDTH / 2;
+        let camY = WORLD_HEIGHT / 2;
+        let currentZoom = 1.0;
+        let shakeIntensity = 0;
+        let shakeDuration = 0;
+
+        function toggleMenuPanel() { menuPanel.classList.toggle('active'); }
+
+        async function loadCharacterFromJSON(jsonPath) {
+            if (loadedCharacters.length >= 2) return alert("Arena Penuh (Maksimal 2 Karakter)");
+
             try {
                 const response = await fetch(jsonPath);
-                if (!response.ok) throw new Error("Gagal mengambil file JSON");
-                
-                selectedCharacter = await response.json();
-                
-                // Update Tampilan HTML dari data JSON
-                document.getElementById('char-name').innerText = selectedCharacter.nama;
-                document.getElementById('char-hp').innerText = `HP: ${selectedCharacter.hp}`;
-                
-                const previewImg = document.getElementById('char-preview');
-                previewImg.src = selectedCharacter.gambar;
-                previewImg.style.display = 'block';
-
-                document.getElementById('btn-ult').style.display = 'inline-block';
-                
-                console.log("Karakter berhasil dimuat:", selectedCharacter);
-            } catch (error) {
-                console.error("Error loading JSON:", error);
-                alert("Gagal memuat karakter! Pastikan jalan di Web Server / Live Server.");
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                tambahkanKarakterKeArena(data);
+            } catch (err) {
+                console.error("Gagal membaca file JSON:", err);
+                alert("Gagal memuat file JSON! Pastikan dijalankan lewat Web Server / Live Server.");
             }
         }
 
-        // Fungsi Pemutar SFX dari path
-        function playSFX(audioPath) {
-            if (!audioPath) return;
-            const audio = new Audio(audioPath);
+        function tambahkanKarakterKeArena(data) {
+            const scale = data.ukuran || 1.0;
+            const charWidth = BASE_WIDTH * scale;
+            const charHeight = BASE_HEIGHT * scale;
+
+            const container = document.createElement('div');
+            container.className = 'character-container';
+            container.style.width = `${charWidth}px`;
+            container.style.height = `${charHeight}px`;
+
+            const hpOuter = document.createElement('div');
+            hpOuter.className = 'hp-bar-outer';
+            const hpInner = document.createElement('div');
+            hpInner.className = 'hp-bar-inner';
+            hpOuter.appendChild(hpInner);
+
+            const img = document.createElement('img');
+            img.src = data.gambar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='75'><rect width='60' height='75' fill='%23555'/></svg>";
+            img.className = 'character-img';
+
+            container.appendChild(hpOuter);
+            container.appendChild(img);
+            arena.appendChild(container);
+
+            const isFirst = loadedCharacters.length === 0;
+            const isInfiniteHp = data.hp === 'infinite' || data.hp === 'inf';
+
+            const charObj = {
+                ...data,
+                uniqueId: `char_${Date.now()}_${Math.random()}`,
+                container: container,
+                hpInner: hpInner,
+                isInfiniteHp: isInfiniteHp,
+                maxHp: isInfiniteHp ? Infinity : (data.hp || 100),
+                currentHp: isInfiniteHp ? Infinity : (data.hp || 100),
+                baseDamage: data.damage || 0,
+                tipeSerangan: data.tipeSerangan || 'none',
+                width: charWidth,
+                height: charHeight,
+                x: isFirst ? 200 : WORLD_WIDTH - 200 - charWidth,
+                y: WORLD_HEIGHT / 2 - (charHeight / 2),
+                vx: isFirst ? (data.kecepatan?.vx || 3) : -(data.kecepatan?.vx || 3),
+                vy: data.kecepatan?.vy || 3,
+                baseSpeedX: data.kecepatan?.vx || 3,
+                baseSpeedY: data.kecepatan?.vy || 3,
+                
+                isCharging: false,
+                isSilenced: false,
+                lastAttackTime: 0,
+                lastUltiTime: 0,
+                
+                // Path file audio lokal
+                sfxPantulPath: data.sfx?.pantul || "",
+                sfxSerangPath: data.sfx?.serang || "",
+                
+                skills: data.skills || { passive: null, normal: null, ultimate: null }
+            };
+
+            loadedCharacters.push(charObj);
+            if (loadedCharacters.length > 0) startMatchBtn.style.display = 'block';
+        }
+
+        function startMatch() {
+            if (!loadedCharacters.length) return;
+            isMatchStarted = true;
+            startMatchBtn.style.display = 'none';
+            menuPanel.classList.remove('active');
+        }
+
+        function clearCharacters() {
+            loadedCharacters.forEach(c => c.container.remove());
+            loadedCharacters = [];
+            isMatchStarted = false;
+            startMatchBtn.style.display = 'none';
+        }
+
+        function playSFXFromPath(path) {
+            if (!path) return;
+            const audio = new Audio(path);
             audio.currentTime = 0;
-            audio.play().catch(err => console.warn("Audio blocked/error:", err));
+            audio.play().catch(() => {});
         }
 
-        // Mekanik Ultimate (Charge 2 Detik -> Boom)
-        function castUltimate() {
-            if (!selectedCharacter || !selectedCharacter.skills.ultimate) return;
+        function showFloatingText(x, y, text, color = "#ff0055") {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = text;
+            el.style.color = color;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            arena.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
 
-            const ult = selectedCharacter.skills.ultimate;
-            console.log(`[CHARGE] ${ult.nama} dimulai...`);
+        function terapkanDamage(target, damage) {
+            if (!target || target.isInfiniteHp) {
+                if (target?.isInfiniteHp) showFloatingText(target.x, target.y - 10, "IMMUNE", "#00f0ff");
+                return;
+            }
+
+            target.currentHp = Math.max(0, target.currentHp - damage);
+            showFloatingText(target.x, target.y - 10, `-${damage}`, "#ff0055");
+            target.hpInner.style.width = `${(target.currentHp / target.maxHp) * 100}%`;
+
+            if (target.currentHp === 0) {
+                setTimeout(() => {
+                    target.container.remove();
+                    loadedCharacters = loadedCharacters.filter(c => c !== target);
+                }, 50);
+            }
+        }
+
+        function triggerScreenShake(intensity, duration) {
+            shakeIntensity = intensity;
+            shakeDuration = duration;
+        }
+
+        function executeSonicBoom(caster, target, ultiConfig) {
+            caster.isCharging = false;
+            caster.container.classList.remove('charging');
+
+            playSFXFromPath(caster.sfxSerangPath); // Play sonic_boom.mp3
             
-            // 1. Putar SFX Charge saat tombol diklik
-            playSFX(selectedCharacter.sfx.pantul);
+            const wave = document.createElement('div');
+            wave.className = 'sonic-wave';
+            wave.style.left = `${caster.x + caster.width / 2}px`;
+            wave.style.top = `${caster.y + caster.height / 2}px`;
+            arena.appendChild(wave);
+            setTimeout(() => wave.remove(), 400);
 
-            // 2. Tembak Sonic Boom setelah chargeDuration selesai (2 detik)
-            setTimeout(() => {
-                console.log(`[BOOM] ${ult.nama} Meledak! Damage: ${ult.damage}`);
-                playSFX(selectedCharacter.sfx.serang);
-            }, ult.chargeDuration * 1000);
+            triggerScreenShake(25, ultiConfig.screenShakeDuration || 2.0);
+
+            if (target) {
+                terapkanDamage(target, ultiConfig.damage || 400);
+                target.isSilenced = true;
+                target.container.classList.add('silenced');
+                showFloatingText(target.x, target.y - 30, "SILENCED!", "#00f0ff");
+
+                setTimeout(() => {
+                    target.isSilenced = false;
+                    target.container.classList.remove('silenced');
+                }, (ultiConfig.silenceDuration || 3.0) * 1000);
+
+                const dx = (target.x + target.width / 2) - (caster.x + caster.width / 2);
+                const dy = (target.y + target.height / 2) - (caster.y + caster.height / 2);
+                const dist = Math.hypot(dx, dy) || 1;
+
+                const force = ultiConfig.knockbackForce || 28;
+                target.vx = (dx / dist) * force;
+                target.vy = (dy / dist) * force;
+            }
         }
+
+        function updateCamera(deltaTime) {
+            const vpWidth = window.innerWidth;
+            const vpHeight = window.innerHeight;
+
+            let targetX = WORLD_WIDTH / 2;
+            let targetY = WORLD_HEIGHT / 2;
+            let targetZoom = 1.0;
+
+            if (loadedCharacters.length === 2) {
+                const c1 = loadedCharacters[0];
+                const c2 = loadedCharacters[1];
+                targetX = ((c1.x + c1.width / 2) + (c2.x + c2.width / 2)) / 2;
+                targetY = ((c1.y + c1.height / 2) + (c2.y + c2.height / 2)) / 2;
+                const dx = Math.abs(c1.x - c2.x) + 280;
+                const dy = Math.abs(c1.y - c2.y) + 280;
+                targetZoom = Math.max(0.45, Math.min(1.6, Math.min(vpWidth / dx, vpHeight / dy)));
+            } else if (loadedCharacters.length === 1) {
+                targetX = loadedCharacters[0].x + loadedCharacters[0].width / 2;
+                targetY = loadedCharacters[0].y + loadedCharacters[0].height / 2;
+                targetZoom = 1.3;
+            }
+
+            camX += (targetX - camX) * 0.08;
+            camY += (targetY - camY) * 0.08;
+            currentZoom += (targetZoom - currentZoom) * 0.08;
+
+            let offsetX = 0;
+            let offsetY = 0;
+            if (shakeDuration > 0) {
+                shakeDuration -= deltaTime;
+                const currentIntensity = shakeIntensity * Math.max(0, shakeDuration / 2.0);
+                offsetX = (Math.random() - 0.5) * currentIntensity;
+                offsetY = (Math.random() - 0.5) * currentIntensity;
+            }
+
+            const transformX = (vpWidth / 2) - (camX * currentZoom) + offsetX;
+            const transformY = (vpHeight / 2) - (camY * currentZoom) + offsetY;
+
+            arena.style.transform = `translate(${transformX}px, ${transformY}px) scale(${currentZoom})`;
+        }
+
+        let lastTimestamp = 0;
+        function gameLoop(timestamp) {
+            const deltaTime = (timestamp - lastTimestamp) / 1000 || 0;
+            lastTimestamp = timestamp;
+            const now = timestamp / 1000;
+
+            if (isMatchStarted) {
+                loadedCharacters.forEach(char => {
+                    const target = loadedCharacters.find(c => c !== char);
+
+                    if (char.skills.ultimate && !char.isCharging && !char.isSilenced && (now - char.lastUltiTime) >= char.skills.ultimate.cooldown) {
+                        char.isCharging = true;
+                        char.lastUltiTime = now;
+                        char.container.classList.add('charging');
+                        playSFXFromPath(char.sfxPantulPath); // Play sonic_charge.mp3
+
+                        setTimeout(() => {
+                            executeSonicBoom(char, target, char.skills.ultimate);
+                        }, (char.skills.ultimate.chargeDuration || 2.0) * 1000);
+                    }
+
+                    if (!char.isCharging) {
+                        char.x += char.vx;
+                        char.y += char.vy;
+
+                        if (Math.abs(char.vx) > char.baseSpeedX) char.vx *= 0.95;
+                        if (Math.abs(char.vy) > char.baseSpeedY) char.vy *= 0.95;
+
+                        if (char.x <= 0 || char.x + char.width >= WORLD_WIDTH) {
+                            char.vx *= -1;
+                            char.x = char.x <= 0 ? 0 : WORLD_WIDTH - char.width;
+                        }
+                        if (char.y <= 0 || char.y + char.height >= WORLD_HEIGHT) {
+                            char.vy *= -1;
+                            char.y = char.y <= 0 ? 0 : WORLD_HEIGHT - char.height;
+                        }
+                    }
+
+                    char.container.style.left = `${char.x}px`;
+                    char.container.style.top = `${char.y}px`;
+                });
+
+                if (loadedCharacters.length === 2) {
+                    const [c1, c2] = loadedCharacters;
+                    const isColliding = (c1.x < c2.x + c2.width && c1.x + c1.width > c2.x && c1.y < c2.y + c2.height && c1.y + c1.height > c2.y);
+
+                    if (isColliding) {
+                        c1.vx *= -1; c1.vy *= -1;
+                        c2.vx *= -1; c2.vy *= -1;
+
+                        if (c1.tipeSerangan === 'melee' && !c1.isSilenced && !c1.isCharging && (now - c1.lastAttackTime) >= 0.8) {
+                            c1.lastAttackTime = now;
+                            playSFXFromPath(c1.sfxSerangPath);
+                            terapkanDamage(c2, c1.baseDamage);
+                        }
+                        if (c2.tipeSerangan === 'melee' && !c2.isSilenced && !c2.isCharging && (now - c2.lastAttackTime) >= 0.8) {
+                            c2.lastAttackTime = now;
+                            playSFXFromPath(c2.sfxSerangPath);
+                            terapkanDamage(c1, c2.baseDamage);
+                        }
+                    }
+                }
+            }
+
+            updateCamera(deltaTime);
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
